@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RehabAI - Smart Exercise Companion</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        #video {
+            transform: scaleX(-1);
+            display: none;
+        }
+        
+        #canvas {
+            transform: scaleX(-1);
+            border-radius: 1rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        
+        .video-container {
+            position: relative;
+            width: 100%;
+            max-width: 640px;
+            aspect-ratio: 4/3;
+            background: #000;
+            border-radius: 1rem;
+            overflow: hidden;
+        }
+        
+        .progress-bar-fill {
+            transition: width 0.3s ease;
+            background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+        }
+        
+        .control-btn {
+            transition: all 0.2s ease;
+        }
+        
+        .control-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .status-badge {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .7; }
+        }
+        
+        .feedback-positive {
+            color: #10b981;
+            font-weight: 600;
+        }
+        
+        .feedback-warning {
+            color: #f59e0b;
+            font-weight: 600;
+        }
+        
+        .feedback-error {
+            color: #ef4444;
+            font-weight: 600;
+        }
+        
+        .skeleton-point {
+            fill: #10b981;
+        }
+        
+        .skeleton-line {
+            stroke: #34d399;
+            stroke-width: 3;
+        }
+    </style>
+</head>
+<body class="p-4">
+    <div class="max-w-2xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-6">
+            <h1 class="text-4xl font-bold text-white mb-2">RehabAI</h1>
+            <p class="text-purple-200">Your Smart Exercise Companion</p>
+        </div>
+        
+        <!-- Main Card -->
+        <div class="bg-white rounded-2xl shadow-2xl p-6 mb-6">
+            <!-- Video/Canvas Area -->
+            <div class="video-container mb-6 mx-auto">
+                <video id="video" autoplay playsinline></video>
+                <canvas id="canvas"></canvas>
+            </div>
+            
+            <!-- Control Buttons -->
+            <div class="flex gap-4 mb-6">
+                <button id="startBtn" class="control-btn flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-6 rounded-xl shadow-lg">
+                    <span class="flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/>
+                        </svg>
+                        Start Exercise
+                    </span>
+                </button>
+                <button id="stopBtn" class="control-btn flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-6 rounded-xl shadow-lg" disabled>
+                    <span class="flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd"/>
+                        </svg>
+                        Stop
+                    </span>
+                </button>
+            </div>
+            
+            <!-- Exercise Status Area -->
+            <div class="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-5">
+                <!-- Exercise Title & Status -->
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">Squat Exercise</h2>
+                        <p class="text-sm text-gray-600">Lower body strength training</p>
+                    </div>
+                    <div id="statusBadge" class="status-badge bg-gray-300 text-gray-700 px-4 py-2 rounded-full text-sm font-semibold">
+                        Ready
+                    </div>
+                </div>
+                
+                <!-- Rep Counter -->
+                <div class="mb-4 bg-white rounded-lg p-4 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-600 font-medium">Repetitions</span>
+                        <span id="repCount" class="text-3xl font-bold text-purple-600">0</span>
+                    </div>
+                </div>
+                
+                <!-- Progress Bar -->
+                <div class="mb-4">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-sm font-medium text-gray-600">Session Progress</span>
+                        <span id="progressText" class="text-sm font-semibold text-purple-600">0/10</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                        <div id="progressBar" class="progress-bar-fill h-full rounded-full" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <!-- Real-time Feedback -->
+                <div class="bg-white rounded-lg p-4 shadow-sm">
+                    <div class="flex items-start gap-3">
+                        <svg id="feedbackIcon" class="w-6 h-6 text-blue-500 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <div class="flex-1">
+                            <h3 class="text-sm font-semibold text-gray-700 mb-1">Live Feedback</h3>
+                            <p id="feedback-text" class="text-base">Stand in front of the camera to begin</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer Info -->
+        <div class="text-center text-purple-100 text-sm">
+            <p>Powered by TensorFlow.js & MoveNet</p>
+        </div>
+    </div>
+
+    <!-- TensorFlow.js and Pose Detection -->
+    <script type="importmap">
+    {
+        "imports": {
+            "@tensorflow/tfjs": "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0/dist/tf.min.js",
+            "@tensorflow-models/pose-detection": "https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.min.js"
+        }
+    }
+    </script>
+
+    <script type="module">
+        // Import TensorFlow.js and Pose Detection
+        import * as poseDetection from '@tensorflow-models/pose-detection';
+
+        // Global variables
+        let detector = null;
+        let video = document.getElementById('video');
+        let canvas = document.getElementById('canvas');
+        let ctx = canvas.getContext('2d');
+        let isRunning = false;
+        let animationId = null;
+
+        // Exercise tracking variables
+        let repCount = 0;
+        let squatState = 'up'; // 'up' or 'down'
+        let isDeepEnough = false;
+        const TARGET_REPS = 10;
+
+        // UI elements
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const feedbackText = document.getElementById('feedback-text');
+        const repCountEl = document.getElementById('repCount');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        const statusBadge = document.getElementById('statusBadge');
+        const feedbackIcon = document.getElementById('feedbackIcon');
+
+        // MoveNet keypoint connections for skeleton drawing
+        const POSE_CONNECTIONS = [
+            [0, 1], [0, 2], [1, 3], [2, 4],  // Face
+            [5, 6], [5, 7], [7, 9], [6, 8], [8, 10],  // Arms
+            [5, 11], [6, 12], [11, 12],  // Torso
+            [11, 13], [13, 15], [12, 14], [14, 16]  // Legs
+        ];
+
+        // Helper function: Calculate angle between three points
+        function calculateAngle(p1, p2, p3) {
+            if (!p1 || !p2 || !p3) return null;
+            
+            const radians = Math.atan2(p3.y - p2.y, p3.x - p2.x) - 
+                          Math.atan2(p1.y - p2.y, p1.x - p2.x);
+            let angle = Math.abs(radians * 180.0 / Math.PI);
+            
+            if (angle > 180.0) {
+                angle = 360 - angle;
+            }
+            
+            return angle;
+        }
+
+        // Helper function: Get keypoint by name
+        function getKeypoint(keypoints, name) {
+            const point = keypoints.find(kp => kp.name === name);
+            return (point && point.score > 0.3) ? point : null;
+        }
+
+        // Update feedback UI
+        function updateFeedback(message, type = 'info') {
+            feedbackText.textContent = message;
+            feedbackText.className = '';
+            feedbackIcon.className = 'w-6 h-6 flex-shrink-0 mt-1';
+            
+            if (type === 'positive') {
+                feedbackText.classList.add('feedback-positive');
+                feedbackIcon.classList.add('text-green-500');
+                feedbackIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>';
+            } else if (type === 'warning') {
+                feedbackText.classList.add('feedback-warning');
+                feedbackIcon.classList.add('text-yellow-500');
+                feedbackIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>';
+            } else if (type === 'error') {
+                feedbackText.classList.add('feedback-error');
+                feedbackIcon.classList.add('text-red-500');
+                feedbackIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>';
+            } else {
+                feedbackText.classList.add('text-gray-700');
+                feedbackIcon.classList.add('text-blue-500');
+                feedbackIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>';
+            }
+        }
+
+        // Update progress UI
+        function updateProgress() {
+            repCountEl.textContent = repCount;
+            const progress = Math.min((repCount / TARGET_REPS) * 100, 100);
+            progressBar.style.width = progress + '%';
+            progressText.textContent = `${repCount}/${TARGET_REPS}`;
+            
+            if (repCount >= TARGET_REPS) {
+                updateFeedback('🎉 Excellent! Session complete!', 'positive');
+                statusBadge.textContent = 'Complete';
+                statusBadge.className = 'status-badge bg-green-500 text-white px-4 py-2 rounded-full text-sm font-semibold';
+            }
+        }
+
+        // Exercise evaluation engine
+        function evaluateSquat(keypoints) {
+            // Extract key joints
+            const leftHip = getKeypoint(keypoints, 'left_hip');
+            const leftKnee = getKeypoint(keypoints, 'left_knee');
+            const leftAnkle = getKeypoint(keypoints, 'left_ankle');
+            const leftShoulder = getKeypoint(keypoints, 'left_shoulder');
+            
+            const rightHip = getKeypoint(keypoints, 'right_hip');
+            const rightKnee = getKeypoint(keypoints, 'right_knee');
+            const rightAnkle = getKeypoint(keypoints, 'right_ankle');
+            const rightShoulder = getKeypoint(keypoints, 'right_shoulder');
+
+            // Check if all required keypoints are detected
+            if (!leftHip || !leftKnee || !leftAnkle || !leftShoulder ||
+                !rightHip || !rightKnee || !rightAnkle || !rightShoulder) {
+                updateFeedback('Please ensure your full body is visible', 'warning');
+                return;
+            }
+
+            // Calculate joint angles
+            const leftKneeAngle = calculateAngle(leftHip, leftKnee, leftAnkle);
+            const rightKneeAngle = calculateAngle(rightHip, rightKnee, rightAnkle);
+            const leftHipAngle = calculateAngle(leftShoulder, leftHip, leftKnee);
+            const rightHipAngle = calculateAngle(rightShoulder, rightHip, rightKnee);
+
+            if (!leftKneeAngle || !rightKneeAngle || !leftHipAngle || !rightHipAngle) {
+                return;
+            }
+
+            // Average angles for both sides
+            const avgKneeAngle = (leftKneeAngle + rightKneeAngle) / 2;
+            const avgHipAngle = (leftHipAngle + rightHipAngle) / 2;
+
+            // State machine logic
+            if (squatState === 'up') {
+                // Check if user is in standing position
+                if (avgHipAngle > 160 && avgKneeAngle > 160) {
+                    updateFeedback('Ready to squat. Lower your body.', 'info');
+                }
+                
+                // Transition to 'down' state
+                if (avgHipAngle < 140 && avgKneeAngle < 140) {
+                    squatState = 'down';
+                    isDeepEnough = false;
+                    updateFeedback('Going down... Keep your back straight', 'info');
+                }
+            } 
+            else if (squatState === 'down') {
+                // Check squat depth and form
+                if (avgKneeAngle > 100 && avgKneeAngle < 140) {
+                    updateFeedback('Squat deeper! Get those thighs parallel', 'warning');
+                } 
+                else if (avgKneeAngle <= 100) {
+                    isDeepEnough = true;
+                    updateFeedback('Perfect depth! Now stand up', 'positive');
+                }
+
+                // Check for form issues
+                if (Math.abs(leftKneeAngle - rightKneeAngle) > 15) {
+                    updateFeedback('Keep your knees aligned!', 'error');
+                }
+
+                // Transition back to 'up' state (rep completed)
+                if (avgHipAngle > 160 && avgKneeAngle > 160) {
+                    if (isDeepEnough) {
+                        // Valid rep!
+                        repCount++;
+                        updateProgress();
+                        updateFeedback(`✓ Good rep! Count: ${repCount}`, 'positive');
+                        
+                        // Celebration for milestones
+                        if (repCount % 5 === 0 && repCount < TARGET_REPS) {
+                            setTimeout(() => {
+                                updateFeedback(`🔥 ${repCount} reps done! Keep going!`, 'positive');
+                            }, 1000);
+                        }
+                    } else {
+                        updateFeedback('Rep too shallow. Go deeper next time.', 'error');
+                    }
+                    
+                    squatState = 'up';
+                    isDeepEnough = false;
+                }
+            }
+        }
+
+        // Draw skeleton on canvas
+        function drawSkeleton(keypoints) {
+            // Draw connections (bones)
+            ctx.strokeStyle = '#34d399';
+            ctx.lineWidth = 3;
+            
+            POSE_CONNECTIONS.forEach(([i, j]) => {
+                const kp1 = keypoints[i];
+                const kp2 = keypoints[j];
+                
+                if (kp1.score > 0.3 && kp2.score > 0.3) {
+                    ctx.beginPath();
+                    ctx.moveTo(kp1.x, kp1.y);
+                    ctx.lineTo(kp2.x, kp2.y);
+                    ctx.stroke();
+                }
+            });
+
+            // Draw keypoints (joints)
+            keypoints.forEach(keypoint => {
+                if (keypoint.score > 0.3) {
+                    ctx.fillStyle = '#10b981';
+                    ctx.beginPath();
+                    ctx.arc(keypoint.x, keypoint.y, 6, 0, 2 * Math.PI);
+                    ctx.fill();
+                    
+                    // Draw white border
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            });
+        }
+
+        // Main detection loop
+        async function detectPose() {
+            if (!isRunning) return;
+
+            // Draw video frame to canvas
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Estimate pose
+            const poses = await detector.estimatePoses(video);
+
+            if (poses.length > 0) {
+                const pose = poses[0];
+                
+                // Draw skeleton
+                drawSkeleton(pose.keypoints);
+                
+                // Evaluate squat
+                evaluateSquat(pose.keypoints);
+            } else {
+                updateFeedback('No person detected. Step into frame.', 'warning');
+            }
+
+            // Continue loop
+            animationId = requestAnimationFrame(detectPose);
+        }
+
+        // Initialize camera
+        async function setupCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: 640,
+                        height: 480,
+                        facingMode: 'user'
+                    },
+                    audio: false
+                });
+
+                video.srcObject = stream;
+                
+                return new Promise((resolve) => {
+                    video.onloadedmetadata = () => {
+                        video.play();
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        resolve();
+                    };
+                });
+            } catch (error) {
+                console.error('Camera error:', error);
+                updateFeedback('Camera access denied. Please allow camera access.', 'error');
+                throw error;
+            }
+        }
+
+        // Initialize pose detector
+        async function loadModel() {
+            try {
+                updateFeedback('Loading AI model...', 'info');
+                statusBadge.textContent = 'Loading...';
+                statusBadge.className = 'status-badge bg-yellow-500 text-white px-4 py-2 rounded-full text-sm font-semibold';
+
+                const detectorConfig = {
+                    modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING,
+                    enableSmoothing: true,
+                    minPoseScore: 0.3
+                };
+
+                detector = await poseDetection.createDetector(
+                    poseDetection.SupportedModels.MoveNet,
+                    detectorConfig
+                );
+
+                updateFeedback('AI model loaded! Ready to start.', 'positive');
+                statusBadge.textContent = 'Ready';
+                statusBadge.className = 'status-badge bg-green-500 text-white px-4 py-2 rounded-full text-sm font-semibold';
+            } catch (error) {
+                console.error('Model loading error:', error);
+                updateFeedback('Failed to load AI model. Please refresh.', 'error');
+                throw error;
+            }
+        }
+
+        // Start exercise
+        async function start() {
+            try {
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                
+                if (!detector) {
+                    await loadModel();
+                }
+
+                await setupCamera();
+                
+                isRunning = true;
+                squatState = 'up';
+                isDeepEnough = false;
+                
+                statusBadge.textContent = 'Active';
+                statusBadge.className = 'status-badge bg-blue-500 text-white px-4 py-2 rounded-full text-sm font-semibold';
+                
+                updateFeedback('Exercise started! Stand straight to begin.', 'positive');
+                detectPose();
+            } catch (error) {
+                console.error('Start error:', error);
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+        }
+
+        // Stop exercise
+        function stop() {
+            isRunning = false;
+            
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+            }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            
+            statusBadge.textContent = 'Stopped';
+            statusBadge.className = 'status-badge bg-gray-400 text-white px-4 py-2 rounded-full text-sm font-semibold';
+            
+            updateFeedback(`Session ended. You completed ${repCount} reps.`, 'info');
+        }
+
+        // Event listeners
+        startBtn.addEventListener('click', start);
+        stopBtn.addEventListener('click', stop);
+
+        // Initialize on page load
+        window.addEventListener('load', async () => {
+            console.log('RehabAI initialized');
+            updateFeedback('Click "Start Exercise" to begin', 'info');
+        });
+    </script>
+</body>
+</html>

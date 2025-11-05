@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RehabAI - Smart Physical Therapy Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#667eea',
+                        secondary: '#764ba2',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        #video {
+            transform: scaleX(-1);
+            display: none;
+        }
+        
+        #canvas {
+            transform: scaleX(-1);
+            border-radius: 1rem;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        .video-container {
+            position: relative;
+            width: 100%;
+            max-width: 640px;
+            aspect-ratio: 4/3;
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            border-radius: 1rem;
+            overflow: hidden;
+        }
+        
+        .progress-bar-fill {
+            transition: width 0.3s ease;
+            background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+        }
+        
+        .control-btn {
+            transition: all 0.2s ease;
+        }
+        
+        .control-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .control-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .status-badge {
+            animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .8; }
+        }
+        
+        .feedback-positive {
+            color: #10b981;
+            font-weight: 600;
+        }
+        
+        .feedback-warning {
+            color: #f59e0b;
+            font-weight: 600;
+        }
+        
+        .feedback-error {
+            color: #ef4444;
+            font-weight: 600;
+        }
+        
+        .feedback-info {
+            color: #3b82f6;
+            font-weight: 600;
+        }
+        
+        .exercise-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .exercise-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+        }
+        
+        .exercise-card.selected {
+            border: 3px solid #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.2);
+        }
+        
+        .quality-meter {
+            transition: all 0.5s ease;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+        }
+        
+        .tab-button {
+            transition: all 0.2s ease;
+        }
+        
+        .tab-button.active {
+            background: white;
+            color: #667eea;
+            font-weight: 600;
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .loading-spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen">
+    <!-- Navigation -->
+    <nav class="glass-card shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="bg-gradient-to-r from-primary to-secondary p-2 rounded-xl">
+                        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-800">RehabAI</h1>
+                        <p class="text-xs text-gray-500">AI-Powered Physical Therapy</p>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button class="tab-button active px-4 py-2 rounded-lg text-sm font-medium" onclick="switchTab('exercise')">
+                        Exercise
+                    </button>
+                    <button class="tab-button px-4 py-2 rounded-lg text-sm font-medium text-gray-600" onclick="switchTab('dashboard')">
+                        Dashboard
+                    </button>
+                    <button class="tab-button px-4 py-2 rounded-lg text-sm font-medium text-gray-600" onclick="switchTab('about')">
+                        About
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="max-w-7xl mx-auto px-4 py-6">
+        <!-- Exercise Selection Tab -->
+        <div id="exerciseTab" class="fade-in">
+            <!-- Exercise Selection Grid -->
+            <div id="exerciseSelection" class="mb-6">
+                <h2 class="text-2xl font-bold text-white mb-4 text-center">Choose Your Exercise</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="exerciseGrid">
+                    <!-- Exercise cards will be dynamically loaded -->
+                </div>
+            </div>
+
+            <!-- Exercise Session Area -->
+            <div id="sessionArea" style="display: none;">
+                <div class="glass-card rounded-2xl shadow-2xl p-6 mb-6">
+                    <!-- Back Button -->
+                    <button onclick="backToSelection()" class="mb-4 flex items-center gap-2 text-gray-600 hover:text-gray-800 transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                        </svg>
+                        Back to Exercise Selection
+                    </button>
+
+                    <div class="grid lg:grid-cols-3 gap-6">
+                        <!-- Video Area (2 columns) -->
+                        <div class="lg:col-span-2">
+                            <div class="video-container mb-4 mx-auto">
+                                <video id="video" autoplay playsinline></video>
+                                <canvas id="canvas"></canvas>
+                                <div id="loadingOverlay" class="absolute inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50">
+                                    <div class="text-center">
+                                        <div class="loading-spinner mx-auto mb-3"></div>
+                                        <p class="text-white font-medium">Initializing AI...</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Control Buttons -->
+                            <div class="flex gap-3">
+                                <button id="startBtn" class="control-btn flex-1 bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-6 rounded-xl shadow-lg">
+                                    <span class="flex items-center justify-center gap-2">
+                                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                            <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/>
+                                        </svg>
+                                        Start Exercise
+                                    </span>
+                                </button>
+                                <button id="stopBtn" class="control-btn flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-6 rounded-xl shadow-lg" disabled>
+                                    <span class="flex items-center justify-center gap-2">
+                                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd"/>
+                                        </svg>
+                                        Stop
+                                    </span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Stats & Feedback Area (1 column) -->
+                        <div class="lg:col-span-1">
+                            <!-- Exercise Info -->
+                            <div class="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-4 mb-4">
+                                <div class="flex items-center justify-between mb-3">
+                                    <div>
+                                        <h2 id="exerciseName" class="text-xl font-bold text-gray-800">Exercise</h2>
+                                        <p id="exerciseDesc" class="text-sm text-gray-600">Loading...</p>
+                                    </div>
+                                    <div id="statusBadge" class="status-badge bg-gray-300 text-gray-700 px-3 py-1 rounded-full text-xs font-semibold">
+                                        Ready
+                                    </div>
+                                </div>
+                                
+                                <!-- Target Muscles -->
+                                <div class="flex flex-wrap gap-2 mb-3">
+                                    <span class="text-xs font-medium text-gray-600">Target:</span>
+                                    <div id="muscleGroups" class="flex flex-wrap gap-1">
+                                        <!-- Dynamically loaded -->
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Stats Grid -->
+                            <div class="grid grid-cols-2 gap-3 mb-4">
+                                <!-- Rep Counter -->
+                                <div class="stat-card rounded-xl p-4 text-center">
+                                    <p class="text-xs text-gray-600 font-medium mb-1">Reps</p>
+                                    <p id="repCount" class="text-3xl font-bold text-primary">0</p>
+                                    <p id="targetReps" class="text-xs text-gray-500">of 10</p>
+                                </div>
+                                
+                                <!-- Quality Score -->
+                                <div class="stat-card rounded-xl p-4 text-center">
+                                    <p class="text-xs text-gray-600 font-medium mb-1">Quality</p>
+                                    <p id="qualityScore" class="text-3xl font-bold text-green-600">--</p>
+                                    <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
+                                        <div id="qualityBar" class="quality-meter bg-green-500 h-2 rounded-full" style="width: 0%"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Progress Bar -->
+                            <div class="bg-white rounded-xl p-4 mb-4 shadow-sm">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-sm font-medium text-gray-600">Progress</span>
+                                    <span id="progressPercent" class="text-sm font-semibold text-primary">0%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                                    <div id="progressBar" class="progress-bar-fill h-full rounded-full" style="width: 0%"></div>
+                                </div>
+                            </div>
+
+                            <!-- Live Feedback -->
+                            <div class="bg-white rounded-xl p-4 shadow-sm">
+                                <div class="flex items-start gap-3">
+                                    <svg id="feedbackIcon" class="w-6 h-6 text-blue-500 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    <div class="flex-1">
+                                        <h3 class="text-sm font-semibold text-gray-700 mb-1">Live Feedback</h3>
+                                        <p id="feedback-text" class="text-sm feedback-info">Stand in front of the camera to begin</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- AI Status -->
+                            <div class="mt-4 text-center">
+                                <p class="text-xs text-gray-500">
+                                    <span id="aiStatus" class="inline-flex items-center gap-1">
+                                        <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                                        AI Model: Active
+                                    </span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Tab -->
+        <div id="dashboardTab" style="display: none;" class="fade-in">
+            <div class="glass-card rounded-2xl shadow-2xl p-8">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">Your Progress Dashboard</h2>
+                
+                <div class="grid md:grid-cols-3 gap-6 mb-8">
+                    <div class="stat-card rounded-xl p-6 text-center">
+                        <svg class="w-12 h-12 mx-auto mb-3 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p class="text-4xl font-bold text-primary mb-2" id="totalSessions">0</p>
+                        <p class="text-gray-600 font-medium">Total Sessions</p>
+                    </div>
+                    <div class="stat-card rounded-xl p-6 text-center">
+                        <svg class="w-12 h-12 mx-auto mb-3 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                        </svg>
+                        <p class="text-4xl font-bold text-green-500 mb-2" id="totalReps">0</p>
+                        <p class="text-gray-600 font-medium">Total Reps</p>
+                    </div>
+                    <div class="stat-card rounded-xl p-6 text-center">
+                        <svg class="w-12 h-12 mx-auto mb-3 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/>
+                        </svg>
+                        <p class="text-4xl font-bold text-yellow-500 mb-2" id="avgQuality">--</p>
+                        <p class="text-gray-600 font-medium">Avg Quality</p>
+                    </div>
+                </div>
+
+                <div class="bg-gradient-to-r from-primary to-secondary rounded-xl p-8 text-white text-center">
+                    <h3 class="text-2xl font-bold mb-3">🎯 Keep Going!</h3>
+                    <p class="text-lg opacity-90 mb-4">Consistency is the key to recovery</p>
+                    <button onclick="switchTab('exercise')" class="bg-white text-primary px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition">
+                        Start New Session
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- About Tab -->
+        <div id="aboutTab" style="display: none;" class="fade-in">
+            <div class="glass-card rounded-2xl shadow-2xl p-8">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6">About RehabAI</h2>
+                
+                <div class="prose max-w-none">
+                    <div class="mb-8">
+                        <h3 class="text-xl font-bold text-gray-800 mb-3">🏥 What is RehabAI?</h3>
+                        <p class="text-gray-600 leading-relaxed">
+                            RehabAI is an intelligent physical therapy platform that uses advanced AI and computer vision 
+                            to provide real-time feedback on exercise form. Our system helps patients perform rehabilitation 
+                            exercises correctly and safely from the comfort of their homes.
+                        </p>
+                    </div>
+
+                    <div class="mb-8">
+                        <h3 class="text-xl font-bold text-gray-800 mb-3">🤖 How It Works</h3>
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <div class="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-6">
+                                <div class="flex items-center gap-3 mb-3">
+                                    <div class="bg-blue-500 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold">1</div>
+                                    <h4 class="font-bold text-gray-800">Pose Detection</h4>
+                                </div>
+                                <p class="text-gray-600 text-sm">
+                                    Using Google's MoveNet model, we track 17 body keypoints in real-time with high accuracy.
+                                </p>
+                            </div>
+                            <div class="bg-gradient-to-br from-green-50 to-blue-50 rounded-xl p-6">
+                                <div class="flex items-center gap-3 mb-3">
+                                    <div class="bg-green-500 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold">2</div>
+                                    <h4 class="font-bold text-gray-800">Feature Extraction</h4>
+                                </div>
+                                <p class="text-gray-600 text-sm">
+                                    We calculate 16 joint angles and normalize them to be position/scale invariant.
+                                </p>
+                            </div>
+                            <div class="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6">
+                                <div class="flex items-center gap-3 mb-3">
+                                    <div class="bg-purple-500 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold">3</div>
+                                    <h4 class="font-bold text-gray-800">LSTM Classification</h4>
+                                </div>
+                                <p class="text-gray-600 text-sm">
+                                    Our LSTM neural network analyzes movement patterns over time to classify exercises.
+                                </p>
+                            </div>
+                            <div class="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl p-6">
+                                <div class="flex items-center gap-3 mb-3">
+                                    <div class="bg-yellow-500 text-white w-10 h-10 rounded-full flex items-center justify-center font-bold">4</div>
+                                    <h4 class="font-bold text-gray-800">Quality Grading</h4>
+                                </div>
+                                <p class="text-gray-600 text-sm">
+                                    A dedicated quality model evaluates form and provides instant feedback for improvement.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-8">
+                        <h3 class="text-xl font-bold text-gray-800 mb-3">💪 Available Exercises</h3>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div class="border-l-4 border-primary pl-4">
+                                <h4 class="font-bold text-gray-800">Squat</h4>
+                                <p class="text-sm text-gray-600">Lower body strength - Targets quads, glutes, hamstrings</p>
+                            </div>
+                            <div class="border-l-4 border-green-500 pl-4">
+                                <h4 class="font-bold text-gray-800">Shoulder Press</h4>
+                                <p class="text-sm text-gray-600">Upper body strength - Targets deltoids, triceps</p>
+                            </div>
+                            <div class="border-l-4 border-blue-500 pl-4">
+                                <h4 class="font-bold text-gray-800">Lunge</h4>
+                                <p class="text-sm text-gray-600">Single-leg exercise - Targets quads, glutes, balance</p>
+                            </div>
+                            <div class="border-l-4 border-purple-500 pl-4">
+                                <h4 class="font-bold text-gray-800">Lateral Raise</h4>
+                                <p class="text-sm text-gray-600">Shoulder isolation - Targets lateral deltoids</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-gradient-to-r from-primary to-secondary rounded-xl p-6 text-white">
+                        <h3 class="text-xl font-bold mb-2">🔬 Technology Stack</h3>
+                        <div class="grid md:grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <p class="font-semibold mb-2">Frontend:</p>
+                                <ul class="list-disc list-inside space-y-1 opacity-90">
+                                    <li>TensorFlow.js</li>
+                                    <li>MoveNet Pose Detection</li>
+                                    <li>HTML5 Canvas & WebRTC</li>
+                                    <li>Tailwind CSS</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p class="font-semibold mb-2">Backend:</p>
+                                <ul class="list-disc list-inside space-y-1 opacity-90">
+                                    <li>Python Flask API</li>
+                                    <li>TensorFlow/Keras LSTM</li>
+                                    <li>Real-time Processing</li>
+                                    <li>RESTful Architecture</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TensorFlow.js and Pose Detection -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection@2.1.3/dist/pose-detection.min.js"></script>
+
+    <script>
+        // poseDetection is now available globally
+
+        // Configuration
+        const API_BASE = 'http://localhost:5000/api';
+        const FRAME_RATE = 10; // Send 10 frames/second to backend
+        
+        // Global variables
+        let detector = null;
+        let video = document.getElementById('video');
+        let canvas = document.getElementById('canvas');
+        let ctx = canvas.getContext('2d');
+        let isRunning = false;
+        let animationId = null;
+        let sessionId = null;
+        let currentExercise = null;
+        let exercises = {};
+        
+        // Exercise tracking
+        let repCount = 0;
+        let targetReps = 10;
+        let lastState = 'idle';
+        let qualityScores = [];
+        let frameCount = 0;
+        
+        // UI elements
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const feedbackText = document.getElementById('feedback-text');
+        const feedbackIcon = document.getElementById('feedbackIcon');
+        
+        // Stats tracking
+        let sessionStats = {
+            totalSessions: 0,
+            totalReps: 0,
+            qualityScores: []
+        };
+        
+        // Load from localStorage
+        function loadStats() {
+            const saved = localStorage.getItem('rehabai_stats');
+            if (saved) {
+                sessionStats = JSON.parse(saved);
+                updateDashboard();
+            }
+        }
+        
+        // Save to localStorage
+        function saveStats() {
+            localStorage.setItem('rehabai_stats', JSON.stringify(sessionStats));
+        }
+
+        // MoveNet keypoint connections
+        const POSE_CONNECTIONS = [
+            [0, 1], [0, 2], [1, 3], [2, 4],
+            [5, 6], [5, 7], [7, 9], [6, 8], [8, 10],
+            [5, 11], [6, 12], [11, 12],
+            [11, 13], [13, 15], [12, 14], [14, 16]
+        ];
+
+        // Tab switching
+        window.switchTab = function(tabName) {
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+                btn.classList.add('text-gray-600');
+            });
+            
+            event.target.classList.add('active');
+            event.target.classList.remove('text-gray-600');
+            
+            document.getElementById('exerciseTab').style.display = 'none';
+            document.getElementById('dashboardTab').style.display = 'none';
+            document.getElementById('aboutTab').style.display = 'none';
+            
+            if (tabName === 'exercise') {
+                document.getElementById('exerciseTab').style.display = 'block';
+            } else if (tabName === 'dashboard') {
+                document.getElementById('dashboardTab').style.display = 'block';
+                updateDashboard();
+            } else if (tabName === 'about') {
+                document.getElementById('aboutTab').style.display = 'block';
+            }
+        };
+
+        // Update dashboard
+        function updateDashboard() {
+            document.getElementById('totalSessions').textContent = sessionStats.totalSessions;
+            document.getElementById('totalReps').textContent = sessionStats.totalReps;
+            
+            if (sessionStats.qualityScores.length > 0) {
+                const avgQuality = sessionStats.qualityScores.reduce((a, b) => a + b, 0) / sessionStats.qualityScores.length;
+                document.getElementById('avgQuality').textContent = Math.round(avgQuality * 100);
+            } else {
+                document.getElementById('avgQuality').textContent = '--';
+            }
+        }
+
+        // Load exercises from backend
+        async function loadExercises() {
+            try {
+                const response = await fetch(`${API_BASE}/exercises`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    exercises = data.exercises;
+                    renderExerciseGrid();
+                }
+            } catch (error) {
+                console.error('Error loading exercises:', error);
+                // Use fallback exercises
+                exercises = {
+                    'squat': {
+                        name: 'Squat',
+                        description: 'Lower body strength exercise',
+                        target_reps: 10,
+                        muscle_groups: ['Quadriceps', 'Glutes', 'Hamstrings']
+                    },
+                    'shoulder_press': {
+                        name: 'Shoulder Press',
+                        description: 'Upper body strength exercise',
+                        target_reps: 12,
+                        muscle_groups: ['Deltoids', 'Triceps']
+                    },
+                    'lunge': {
+                        name: 'Lunge',
+                        description: 'Single-leg lower body exercise',
+                        target_reps: 10,
+                        muscle_groups: ['Quadriceps', 'Glutes']
+                    },
+                    'lateral_raise': {
+                        name: 'Lateral Raise',
+                        description: 'Shoulder isolation exercise',
+                        target_reps: 15,
+                        muscle_groups: ['Lateral Deltoids']
+                    }
+                };
+                renderExerciseGrid();
+            }
+        }
+
+        // Render exercise selection grid
+        function renderExerciseGrid() {
+            const grid = document.getElementById('exerciseGrid');
+            grid.innerHTML = '';
+            
+            const icons = {
+                'squat': 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+                'shoulder_press': 'M7 11l5-5m0 0l5 5m-5-5v12',
+                'lunge': 'M13 10V3L4 14h7v7l9-11h-7z',
+                'lateral_raise': 'M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4'
+            };
+            
+            const colors = {
+                'squat': 'from-blue-500 to-purple-600',
+                'shoulder_press': 'from-green-500 to-teal-600',
+                'lunge': 'from-orange-500 to-red-600',
+                'lateral_raise': 'from-pink-500 to-purple-600'
+            };
+            
+            Object.entries(exercises).forEach(([key, exercise]) => {
+                const card = document.createElement('div');
+                card.className = 'exercise-card glass-card rounded-xl p-6 shadow-lg';
+                card.onclick = () => selectExercise(key);
+                
+                card.innerHTML = `
+                    <div class="bg-gradient-to-br ${colors[key]} text-white w-16 h-16 rounded-xl flex items-center justify-center mb-4 mx-auto">
+                        <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${icons[key]}"/>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-2 text-center">${exercise.name}</h3>
+                    <p class="text-sm text-gray-600 mb-3 text-center">${exercise.description}</p>
+                    <div class="flex items-center justify-center gap-2 text-xs text-gray-500">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                        ${exercise.target_reps} reps target
+                    </div>
+                `;
+                
+                grid.appendChild(card);
+            });
+        }
+
+        // Select exercise
+        window.selectExercise = async function(exerciseKey) {
+            currentExercise = exerciseKey;
+            const exercise = exercises[exerciseKey];
+            
+            // Update UI
+            document.getElementById('exerciseName').textContent = exercise.name;
+            document.getElementById('exerciseDesc').textContent = exercise.description;
+            document.getElementById('targetReps').textContent = `of ${exercise.target_reps}`;
+            
+            // Update muscle groups
+            const muscleContainer = document.getElementById('muscleGroups');
+            muscleContainer.innerHTML = '';
+            exercise.muscle_groups.forEach(muscle => {
+                const badge = document.createElement('span');
+                badge.className = 'text-xs bg-primary text-white px-2 py-1 rounded-full';
+                badge.textContent = muscle;
+                muscleContainer.appendChild(badge);
+            });
+            
+            targetReps = exercise.target_reps;
+            
+            // Show session area
+            document.getElementById('exerciseSelection').style.display = 'none';
+            document.getElementById('sessionArea').style.display = 'block';
+            
+            // Initialize
+            await initializeSession();
+        };
+
+        // Back to selection
+        window.backToSelection = function() {
+            if (isRunning) {
+                stop();
+            }
+            document.getElementById('exerciseSelection').style.display = 'block';
+            document.getElementById('sessionArea').style.display = 'none';
+            currentExercise = null;
+            resetStats();
+        };
+
+        // Reset stats
+        function resetStats() {
+            repCount = 0;
+            qualityScores = [];
+            lastState = 'idle';
+            updateProgress();
+        }
+
+        // Update progress UI
+        function updateProgress() {
+            // Update rep counter
+            document.getElementById('repCount').textContent = repCount;
+            
+            // Update progress bar
+            const progress = (repCount / targetReps) * 100;
+            document.getElementById('progressBar').style.width = `${Math.min(progress, 100)}%`;
+            document.getElementById('progressPercent').textContent = `${Math.min(Math.round(progress), 100)}%`;
+            
+            // Update quality score
+            if (qualityScores.length > 0) {
+                const avgQuality = qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length;
+                document.getElementById('qualityScore').textContent = Math.round(avgQuality * 100);
+                document.getElementById('qualityBar').style.width = `${avgQuality * 100}%`;
+            }
+            
+            // Celebration when target reached
+            if (repCount >= targetReps) {
+                updateFeedback(`🎉 Target reached! Great job completing ${repCount} reps!`, 'positive');
+            }
+        }
+
+        // Initialize session
+        async function initializeSession() {
+            try {
+                if (!detector) {
+                    await loadModel();
+                }
+                
+                // Start backend session
+                const response = await fetch(`${API_BASE}/session/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ exercise_type: currentExercise })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    sessionId = data.session_id;
+                    console.log('Session started:', sessionId);
+                }
+            } catch (error) {
+                console.error('Error starting session:', error);
+            }
+        }
+
+        // Load pose detection model
+        async function loadModel() {
+            try {
+                console.log('Loading MoveNet model...');
+                updateFeedback('Loading AI model (this may take a moment)...', 'info');
+                document.getElementById('loadingOverlay').style.display = 'flex';
+                
+                if (typeof poseDetection === 'undefined') {
+                    throw new Error('Pose Detection library not available');
+                }
+                
+                const detectorConfig = {
+                    modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING,
+                    enableSmoothing: true,
+                    minPoseScore: 0.3
+                };
+
+                detector = await poseDetection.createDetector(
+                    poseDetection.SupportedModels.MoveNet,
+                    detectorConfig
+                );
+
+                console.log('✓ MoveNet model loaded successfully');
+                updateFeedback('AI model loaded! Ready to start.', 'positive');
+                document.getElementById('loadingOverlay').style.display = 'none';
+            } catch (error) {
+                console.error('Model loading error:', error);
+                updateFeedback('Failed to load AI model: ' + error.message, 'error');
+                document.getElementById('loadingOverlay').style.display = 'none';
+            }
+        }
+
+        // Setup camera
+        async function setupCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 640, height: 480, facingMode: 'user' },
+                    audio: false
+                });
+
+                video.srcObject = stream;
+                
+                return new Promise((resolve) => {
+                    video.onloadedmetadata = () => {
+                        video.play();
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        resolve();
+                    };
+                });
+            } catch (error) {
+                console.error('Camera error:', error);
+                updateFeedback('Camera access denied', 'error');
+                throw error;
+            }
+        }
+
+        // Update feedback UI
+        function updateFeedback(message, type = 'info') {
+            feedbackText.textContent = message;
+            feedbackText.className = '';
+            feedbackIcon.className = 'w-6 h-6 flex-shrink-0 mt-1';
+            
+            const icons = {
+                'positive': { color: 'text-green-500', path: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
+                'warning': { color: 'text-yellow-500', path: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
+                'error': { color: 'text-red-500', path: 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z' },
+                'info': { color: 'text-blue-500', path: 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' }
+            };
+            
+            const icon = icons[type] || icons.info;
+            feedbackText.classList.add(`feedback-${type}`);
+            feedbackIcon.classList.add(icon.color);
+            feedbackIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${icon.path}"/>`;
+        }
+
+        // Update progress
+        function updateProgress() {
+            document.getElementById('repCount').textContent = repCount;
+            const progress = Math.min((repCount / targetReps) * 100, 100);
+            document.getElementById('progressBar').style.width = progress + '%';
+            document.getElementById('progressPercent').textContent = Math.round(progress) + '%';
+            
+            if (qualityScores.length > 0) {
+                const avgQuality = qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length;
+                document.getElementById('qualityScore').textContent = Math.round(avgQuality * 100);
+                document.getElementById('qualityBar').style.width = (avgQuality * 100) + '%';
+            }
+            
+            if (repCount >= targetReps) {
+                updateFeedback('🎉 Excellent! Session complete!', 'positive');
+                document.getElementById('statusBadge').textContent = 'Complete';
+                document.getElementById('statusBadge').className = 'status-badge bg-green-500 text-white px-3 py-1 rounded-full text-xs font-semibold';
+            }
+        }
+
+        // Draw skeleton
+        function drawSkeleton(keypoints) {
+            // Draw connections
+            ctx.strokeStyle = '#34d399';
+            ctx.lineWidth = 3;
+            
+            POSE_CONNECTIONS.forEach(([i, j]) => {
+                const kp1 = keypoints[i];
+                const kp2 = keypoints[j];
+                
+                if (kp1.score > 0.3 && kp2.score > 0.3) {
+                    ctx.beginPath();
+                    ctx.moveTo(kp1.x, kp1.y);
+                    ctx.lineTo(kp2.x, kp2.y);
+                    ctx.stroke();
+                }
+            });
+
+            // Draw keypoints
+            keypoints.forEach(keypoint => {
+                if (keypoint.score > 0.3) {
+                    ctx.fillStyle = '#10b981';
+                    ctx.beginPath();
+                    ctx.arc(keypoint.x, keypoint.y, 6, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            });
+        }
+
+        // Main detection loop
+        async function detectPose() {
+            if (!isRunning) return;
+
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const poses = await detector.estimatePoses(video);
+
+            if (poses.length > 0) {
+                const pose = poses[0];
+                drawSkeleton(pose.keypoints);
+                
+                // Send to backend every N frames
+                frameCount++;
+                if (frameCount % Math.floor(30 / FRAME_RATE) === 0 && sessionId) {
+                    await processFrameBackend(pose.keypoints);
+                }
+            } else {
+                updateFeedback('No person detected. Step into frame.', 'warning');
+            }
+
+            animationId = requestAnimationFrame(detectPose);
+        }
+
+        // Process frame with backend
+        async function processFrameBackend(keypoints) {
+            try {
+                const response = await fetch(`${API_BASE}/session/${sessionId}/frame`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        keypoints: keypoints.map(kp => ({
+                            x: kp.x,
+                            y: kp.y,
+                            score: kp.score,
+                            name: kp.name
+                        }))
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Update quality score
+                    if (data.quality_score) {
+                        qualityScores.push(data.quality_score);
+                        updateProgress();
+                    }
+                    
+                    // Handle feedback
+                    if (data.feedback && data.feedback.length > 0) {
+                        const feedback = data.feedback[0];
+                        updateFeedback(feedback.message, feedback.type);
+                    }
+                    
+                    // Rep detection
+                    if (data.state !== lastState) {
+                        console.log(`State changed: ${lastState} → ${data.state}, quality: ${data.quality_score}`);
+                        
+                        if (lastState === 'down' && data.state === 'up' && data.quality_score > 0.5) {
+                            repCount++;
+                            console.log(`✓ Rep counted! Total: ${repCount}`);
+                            updateProgress();
+                            
+                            // Report rep to backend
+                            await fetch(`${API_BASE}/session/${sessionId}/rep`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ quality_score: data.quality_score })
+                            });
+                        }
+                        lastState = data.state;
+                    }
+                }
+            } catch (error) {
+                console.error('Error processing frame:', error);
+            }
+        }
+
+        // Start exercise
+        async function start() {
+            try {
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                
+                await setupCamera();
+                
+                isRunning = true;
+                lastState = 'idle';
+                frameCount = 0;
+                
+                document.getElementById('statusBadge').textContent = 'Active';
+                document.getElementById('statusBadge').className = 'status-badge bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-semibold';
+                
+                updateFeedback('Exercise started! Stand straight to begin.', 'positive');
+                detectPose();
+            } catch (error) {
+                console.error('Start error:', error);
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+        }
+
+        // Stop exercise
+        async function stop() {
+            isRunning = false;
+            
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+            }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            
+            document.getElementById('statusBadge').textContent = 'Stopped';
+            document.getElementById('statusBadge').className = 'status-badge bg-gray-400 text-white px-3 py-1 rounded-full text-xs font-semibold';
+            
+            updateFeedback(`Session ended. You completed ${repCount} reps.`, 'info');
+            
+            // Update global stats
+            sessionStats.totalSessions++;
+            sessionStats.totalReps += repCount;
+            if (qualityScores.length > 0) {
+                const avgQuality = qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length;
+                sessionStats.qualityScores.push(avgQuality);
+            }
+            saveStats();
+            
+            // End backend session
+            if (sessionId) {
+                try {
+                    await fetch(`${API_BASE}/session/${sessionId}/end`, {
+                        method: 'POST'
+                    });
+                } catch (error) {
+                    console.error('Error ending session:', error);
+                }
+            }
+        }
+
+        // Event listeners
+        startBtn.addEventListener('click', start);
+        stopBtn.addEventListener('click', stop);
+
+        // Initialize
+        window.addEventListener('load', async () => {
+            console.log('RehabAI initializing...');
+            
+            // Check if TensorFlow.js is loaded
+            if (typeof tf === 'undefined') {
+                console.error('TensorFlow.js not loaded');
+                updateFeedback('Failed to load TensorFlow.js', 'error');
+                return;
+            }
+            console.log('✓ TensorFlow.js loaded:', tf.version.tfjs);
+            
+            // Check if pose detection is loaded
+            if (typeof poseDetection === 'undefined') {
+                console.error('Pose Detection library not loaded');
+                updateFeedback('Failed to load Pose Detection library', 'error');
+                return;
+            }
+            console.log('✓ Pose Detection library loaded');
+            
+            loadStats();
+            await loadExercises();
+            console.log('✓ RehabAI initialized successfully');
+        });
+    </script>
+</body>
+</html>
