@@ -16,8 +16,8 @@ Currently supports:
 
 ## Quick Demo:-
  - Current Working in Android App Setting:- https://youtube.com/shorts/Q3VCjHgJYME
- - Previous Web Version with Vibe Coded Frontend for Testing #1:- https://youtu.be/T9BI2jzGk5A?si=SYBwRVKp_nNxlly6
- - Previous WEb Version DEmo #2:- https://youtu.be/xa02BIypBn0?si=vxoP78UUDpthxrOt
+ - Previous Web Version Demo #1:- https://youtu.be/T9BI2jzGk5A?si=SYBwRVKp_nNxlly6
+ - Previous WEb Version Demo #2:- https://youtu.be/xa02BIypBn0?si=vxoP78UUDpthxrOt
 
 ## My Work & Learning Journey
 
