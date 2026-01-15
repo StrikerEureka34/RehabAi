@@ -119,7 +119,25 @@ RehabAI/
             │   └── ui/         # Compose screens
             └── res/
 ```
+### **Data Flow Pipeline**
 
+```mermaid
+graph LR
+    A[Camera] --> B[MoveNet]
+    B --> C[17 Keypoints]
+    C --> D[Feature Extraction]
+    D --> E[16 Joint Angles]
+    E --> F[Normalization]
+    F --> G[LSTM Classifier]
+    G --> H[Exercise Type]
+    F --> I[LSTM Quality Model]
+    I --> J[Quality Score]
+    H --> K[Feedback Generator]
+    J --> K
+    K --> L[UI Display]
+```
+
+---
 ## Running the Project
 
 **Backend**
