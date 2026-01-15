@@ -14,6 +14,11 @@ Currently supports:
 - Lunges
 - Lateral Raises
 
+## Quick Demo:-
+ - Current Working in Android App Setting:- https://youtube.com/shorts/Q3VCjHgJYME
+ - Previous Web Version with Vibe Coded Frontend for Testing #1:- https://youtu.be/T9BI2jzGk5A?si=SYBwRVKp_nNxlly6
+ - Previous WEb Version DEmo #2:- https://youtu.be/xa02BIypBn0?si=vxoP78UUDpthxrOt
+
 ## My Work & Learning Journey
 
 As someone new to both ML and app development, this project helped me understand how to integrate machine learning models into production applications. Here's what I built:
@@ -223,6 +228,16 @@ Built as a learning project to understand ML deployment, mobile development, and
 - Python / Flask
 - TensorFlow / Keras LSTM models
 - RESTful API
+
+
+## Third-Party Components
+
+This project uses Google's BlazePose / MoveNet pose estimation models via
+TensorFlow.js and ML Kit.
+
+These models are © Google LLC and licensed under the Apache License 2.0.
+This project does not redistribute or modify the original models.
+
 
 ## License
 
