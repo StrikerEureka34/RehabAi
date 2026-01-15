@@ -259,4 +259,8 @@ This project does not redistribute or modify the original models.
 
 ## License
 
-MIT License
+Copyright © 2026 Ayush Kumar
+
+This source code is provided for viewing and evaluation purposes only.
+You may not copy, modify, distribute, sublicense, or use this software,
+in whole or in part, without explicit written permission from the author.
