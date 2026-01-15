@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Exercise recordings stored in internal files directory -->
+    <files-path
+        name="recordings"
+        path="recordings/" />
+    
+    <!-- Cache directory for temporary files -->
+    <cache-path
+        name="cache"
+        path="." />
+</paths>
